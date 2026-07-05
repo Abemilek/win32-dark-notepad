@@ -1,0 +1,9 @@
+# Compiled binaries
+*.exe
+*.o
+*.obj
+*.res
+
+# Editor/OS junk
+.vscode/
+Thumbs.db
