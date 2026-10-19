@@ -1,76 +1,57 @@
-# Dark Notepad (Win32)
+# Dark Notepad
 
-A minimal, dark-mode text editor for Windows — built the same way the original Windows Notepad was: **plain C and the native Win32 API**, no frameworks, no runtime dependencies beyond what Windows already ships with.
-
-The goal: something lighter, faster to open, and easier on the eyes than the stock Notepad, without sacrificing simplicity.
-
-## Why
-
-Most "lightweight" text editors today are Electron apps that ship an entire Chromium runtime to open a `.txt` file. This project goes the other direction: a native Win32 window, a native `EDIT` control, and manual dark-mode theming — nothing else.
+A small, native Windows text editor written in C with the Win32 API. It brings a dark interface to a straightforward Notepad-style workflow without embedding Chromium, Electron, or another application runtime. The goal is a fast launch, a small executable, and a focused editing experience.
 
 ## Features
 
-- Dark title bar and dark editor background (via `DwmSetWindowAttribute`)
-- Custom dark-themed menu (owner-drawn, no default white menu bar)
-- Open / Save / Save As with UTF-8 support
-- Word wrap
-- Opens files passed as a command-line argument (works when set as the default `.txt` handler)
-- DPI-aware rendering (crisp text on scaled displays)
-- Keyboard shortcuts: `Ctrl+N`, `Ctrl+O`, `Ctrl+S`
-- Single `.exe`, no installer, no external DLLs beyond standard Windows system libraries
-- Typical compiled size: 40–80 KB
+- Native Win32 window and multiline edit control
+- Dark editor, menu, and title bar where supported by Windows
+- Open, Save, and Save As dialogs
+- UTF-8 (with or without a BOM) and UTF-16 LE/BE file reading; files saved as UTF-8 without a BOM
+- System ANSI code-page fallback for text that is not valid UTF-8
+- Unsaved-change prompts before New, Open, and Exit
+- Visible error messages for file and conversion failures
+- Files up to 16 MiB, with the editor text limit set explicitly
+- `Ctrl+N`, `Ctrl+O`, and `Ctrl+S` shortcuts
+- Optional path argument for opening a file from Explorer or the command line
+- No third-party runtime dependencies
+
+## Scope and limitations
+
+This is a minimal Notepad-inspired editor, not a feature-for-feature replacement for current Windows Notepad. It intentionally keeps the interface simple and avoids animations and large frameworks. It currently supports one document at a time, does not preserve the input file's original encoding or byte-order mark, and saves text as UTF-8. The 16 MiB file limit keeps memory use predictable for this small editor. The standard Win32 edit control is used, so very large documents and advanced editor features are outside the current scope.
+
+The editor treats files as text. Binary files and text containing embedded NUL characters are not supported. ANSI fallback depends on the Windows system code page and is intended for legacy text files, not as a universal encoding detector. The dark title bar depends on Windows version and system support; the editor and menu colors are painted by the application.
 
 ## Requirements
 
-- Windows 10 (1809+) or Windows 11 — earlier versions run the app but without the dark title bar
-- [MinGW-w64](https://winlibs.com) (GCC for Windows) to build from source
+- Windows 10 or Windows 11
+- MinGW-w64 GCC and `windres` to build locally
 
-## Building
+## Build
 
-Clone the repo, then from the project folder:
+From the repository directory in a MinGW-w64 shell:
 
-```bash
+```sh
 windres app_icon.rc -O coff -o app_icon.res
-gcc notepad_dark.c app_icon.res -o notepad_dark.exe -mwindows -municode -ldwmapi -lcomdlg32 -O2 -s
+gcc notepad_dark.c app_icon.res -o dark-notepad.exe -mwindows -municode -ldwmapi -lcomdlg32 -O2 -s
 ```
 
-Flags explained:
+`-mwindows` creates a GUI executable, `-municode` selects `wWinMain`, and the two libraries provide DWM attributes and common file dialogs. The executable uses only Windows system libraries.
 
-| Flag | Purpose |
-|---|---|
-| `-mwindows` | Build as a GUI app (no console window) |
-| `-municode` | Use the Unicode entry point (`wWinMain`) |
-| `-ldwmapi` | Needed for dark title bar support |
-| `-lcomdlg32` | Needed for the Open/Save file dialogs |
-| `-O2` | Optimize for speed |
-| `-s` | Strip debug symbols (smaller binary) |
+## Use
 
-## Usage
+Run `dark-notepad.exe`, open a file through **File → Open**, or pass a file path:
 
-| Shortcut | Action |
-|---|---|
-| `Ctrl+N` | New file |
-| `Ctrl+O` | Open file |
-| `Ctrl+S` | Save |
+```sh
+dark-notepad.exe "C:\path with spaces\notes.txt"
+```
 
-You can also set `notepad_dark.exe` as the default app for `.txt` files (right-click a `.txt` → *Open with* → *Choose another app* → select it → check "Always use this app").
+You can also select the executable as the default app for `.txt` files in Windows.
 
-## How the dark mode works
+## Continuous integration and releases
 
-- The editor's background/text colors are painted manually by intercepting `WM_CTLCOLOREDIT`.
-- The dark title bar comes from the DWM API (`DwmSetWindowAttribute`, available since Windows 10 1809).
-- The menu bar and dropdown are owner-drawn (`WM_MEASUREITEM` / `WM_DRAWITEM`) since Windows doesn't support recoloring the default menu through documented APIs.
-
-No third-party UI libraries or theming frameworks are used — everything above is done with the standard Win32 API.
-
-## Ideas for contributions
-
-- Find & Replace dialog
-- Word/character count in a status bar
-- Line-ending detection (CRLF/LF) and conversion
-- Remember window size/position between sessions
-- Zoom in/out (font scaling)
+GitHub Actions builds the application on pushes and pull requests. Pushing a version tag such as `v1.1.0` builds the executable and publishes a GitHub release using the matching file in `release-notes/`. The release workflow can also be started manually from the Actions tab. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and [`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

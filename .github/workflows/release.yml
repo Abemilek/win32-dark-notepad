@@ -1,0 +1,62 @@
+name: Publish release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Version tag to publish (for example v1.1.0)
+        required: true
+        type: string
+      release_notes:
+        description: Summary of changes included in this release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref_name || 'main' }}
+
+      - name: Set up MinGW-w64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
+
+      - name: Build release executable
+        shell: msys2 {0}
+        run: |
+          windres app_icon.rc -O coff -o app_icon.res
+          gcc notepad_dark.c app_icon.res -o dark-notepad.exe -mwindows -municode -ldwmapi -lcomdlg32 -O2 -s
+
+      - name: Prepare release notes
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+          RELEASE_NOTES_INPUT: ${{ inputs.release_notes }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if ($env:EVENT_NAME -eq 'push') {
+            Copy-Item "release-notes/$($env:RELEASE_TAG).md" release-body.md
+          } else {
+            Set-Content -Path release-body.md -Value $env:RELEASE_NOTES_INPUT
+          }
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+          name: Dark Notepad ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+          body_path: release-body.md
+          files: dark-notepad.exe
+          fail_on_unmatched_files: true

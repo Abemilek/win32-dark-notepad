@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up MinGW-w64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
+
+      - name: Compile application
+        shell: msys2 {0}
+        run: |
+          windres app_icon.rc -O coff -o app_icon.res
+          gcc notepad_dark.c app_icon.res -o dark-notepad.exe -mwindows -municode -ldwmapi -lcomdlg32 -O2 -Wall -Wextra
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: dark-notepad-windows
+          path: dark-notepad.exe
+          if-no-files-found: error
